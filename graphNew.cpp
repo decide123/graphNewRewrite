@@ -9,6 +9,9 @@ const COLORREF netLNcolor = RGB (138, 6, 255);
 struct Button
     {
     double (*mathFunc) (double x);
+
+    const char* funcName;
+
     double xPosB;
     double yPosB;
     double sizeX;
@@ -16,7 +19,10 @@ struct Button
     };
 
 void drawGraph (double (*mathFunc) (double x));
+
 double linear (double x);
+double square (double x);
+
 void drawCartesian (double x, double y);
 void drawPolar     (double rho, double phi);
 
@@ -24,15 +30,20 @@ void graphTypeChoice (std::vector <Button> *buttons);
 bool mouseDetection (std::vector  <Button> *buttons, int i);
 void buttonPlacement (std::vector <Button> *buttons);
 void drawButtons (std::vector <Button> *buttons);
-void drawNet (COLORREF netBGcolor, COLORREF netLNcolor);
-
+void drawNet (COLORREF netBGcolor, COLORREF netLNcolor, double netSize, double xDefault, double yDefault);
 
 
 int main()
     {
     txCreateWindow (1920, 900);
+    txBegin();
 
-    Button buttonsOld[1] = {{linear, 0, 0, 100, 20}};
+    txTextCursor (false);
+
+    Button buttonsOld[2] = {
+                            {linear, "line"  , 0, 0, 100, 20},
+                            {square, "square", 0, 0, 100, 20}
+                           };
 
     std::vector <Button> buttons;
 
@@ -41,12 +52,17 @@ int main()
         buttons.push_back (buttonsOld[i]);
         }
 
-        drawNet     (netBGcolor, netLNcolor);
+
+    double xDefault = 1920;
+    double yDefault = 1080;
+    double netSize  = 50;
+    drawNet (netBGcolor, netLNcolor, netSize, xDefault, yDefault);
 
     while(!GetAsyncKeyState (VK_ESCAPE))
         {
         drawButtons (&buttons);
         graphTypeChoice (&buttons);
+        txSleep (1);
         }
 
     return 0;
@@ -71,6 +87,13 @@ void drawGraph (double (*mathFunc) (double x))
 double linear (double x)
     {
     double y = x;
+
+    return y;
+    }
+
+double square (double x)
+    {
+    double y = x*x;
 
     return y;
     }
@@ -107,7 +130,7 @@ void graphTypeChoice (std::vector <Button> *buttons) //сделать членом класса
 
 bool mouseDetection (std::vector <Button> *buttons, int i)
     {
-    txRectangle
+    //txRectangle
 
     if (txMouseX() > buttons -> at(i).xPosB  && txMouseX() < buttons -> at(i).xPosB + buttons -> at(i).sizeX
      && txMouseY() > buttons -> at(i).yPosB  && txMouseY() > buttons -> at(i).yPosB + buttons -> at(i).sizeY
@@ -120,27 +143,49 @@ bool mouseDetection (std::vector <Button> *buttons, int i)
     else   return false;
     }
 
-void drawNet (COLORREF netBGcolor, COLORREF netLNcolor)
+void drawNet (COLORREF netBGcolor, COLORREF netLNcolor, double netSize, double xDefault, double yDefault)  // xyDefault описать
     {
     txSetColor     (netLNcolor);
     txSetFillColor (netBGcolor);
+    double    xNetCellSize = netSize*(txGetExtentX()/xDefault);
+    double oldxNetCellSize = netSize*(txGetExtentX()/xDefault);
 
-    txRectangle (50*(txGetExtentX()/1920), 50*(txGetExtentY()/1080), txGetExtentX() - 50*(txGetExtentX()/1920), txGetExtentY() - 50*(txGetExtentY()/1920));
+    double    yNetCellSize = netSize*(txGetExtentY()/yDefault);
+    double oldyNetCellSize = netSize*(txGetExtentY()/yDefault);
 
-    int xLine = 50*(txGetExtentX()/1920);
-    while (xLine < txGetExtentX() - 50*(txGetExtentX()/1920))
+    txRectangle (xNetCellSize, netSize*(txGetExtentY()/yDefault),
+                 txGetExtentX() - xNetCellSize, txGetExtentY() - netSize*(txGetExtentY()/xDefault));
+
+    double xLastLine = 0;
+    double yLastLine = 0;
+
+    while (xNetCellSize < txGetExtentX() - netSize*(txGetExtentX()/xDefault))
         {
-        txLine (xLine, 50*(txGetExtentY()/1920), xLine, txGetExtentY() - 50*(txGetExtentY()/1080));
-        xLine += 50*(txGetExtentX()/1920);
+        xLastLine = xNetCellSize;
+        txLine (xNetCellSize, netSize*(txGetExtentY()/yDefault), xNetCellSize, txGetExtentY() - netSize*(txGetExtentY()/yDefault));
+        xNetCellSize += netSize*(txGetExtentX()/xDefault);
         }
 
-    int yLine = 50*(txGetExtentY()/1080);
-    while (yLine < txGetExtentY() - 50*(txGetExtentY()/1080))
+    xNetCellSize = oldxNetCellSize;
+
+    while (yNetCellSize < txGetExtentY() - netSize*(txGetExtentY()/yDefault))
         {
-        txLine (50*(txGetExtentX()/1920), yLine, txGetExtentX() - 50*(txGetExtentX()/1920), yLine);
-        yLine += 50*(txGetExtentX()/1920);
+        yLastLine = yNetCellSize;
+        txLine (xNetCellSize, yNetCellSize, txGetExtentX() - xNetCellSize, yNetCellSize);
+        yNetCellSize += netSize*(txGetExtentY()/yDefault);
         }
 
+    yNetCellSize = oldyNetCellSize;
+
+    txSetColor     (RGB (0, 0, 0));
+    txSetFillColor (RGB (0, 0, 0));
+    txRectangle (xLastLine, 0        , txGetExtentX(), txGetExtentY());
+    txRectangle (0        , yLastLine, txGetExtentX(), txGetExtentY());
+
+    txSetColor (netLNcolor);
+
+    txLine (xLastLine,       oldxNetCellSize, xLastLine, yLastLine);
+    txLine (oldxNetCellSize,       yLastLine, xLastLine, yLastLine);
     }
 
 void drawButtons (std::vector <Button> *buttons)
@@ -156,6 +201,10 @@ void drawButtons (std::vector <Button> *buttons)
 
         txRectangle (buttons -> at(i).xPosB,                          buttons -> at(i).yPosB,
                      buttons -> at(i).xPosB + buttons -> at(i).sizeX, buttons -> at(i).yPosB + buttons -> at(i).sizeY);
+
+        txDrawText (buttons -> at(i).xPosB,                          buttons -> at(i).yPosB,
+                    buttons -> at(i).xPosB + buttons -> at(i).sizeX, buttons -> at(i).yPosB + buttons -> at(i).sizeY,
+                    buttons -> at(i).funcName);
         }
     }
 
